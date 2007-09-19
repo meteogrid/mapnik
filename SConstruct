@@ -27,12 +27,13 @@ if platform.uname()[4] == 'x86_64':
 else:
     LIBDIR_SCHEMA='lib'
 
-opts = Options()
+opts = Options('config.py')
 opts.Add('PREFIX', 'The install path "prefix"', '/usr/local')
 opts.Add(PathOption('BOOST_INCLUDES', 'Search path for boost include files', '/usr/include'))
 opts.Add(PathOption('BOOST_LIBS', 'Search path for boost library files', '/usr/' + LIBDIR_SCHEMA))
 opts.Add('BOOST_TOOLKIT','Specify boost toolkit e.g. gcc41.','',False)
 opts.Add(('FREETYPE_CONFIG', 'The path to the freetype-config executable.', 'freetype-config'))
+opts.Add(('XML2_CONFIG', 'The path to the xml2-config executable.', ''))
 opts.Add(PathOption('FRIBIDI_INCLUDES', 'Search path for fribidi include files', '/usr/include'))
 opts.Add(PathOption('FRIBIDI_LIBS','Search path for fribidi include files','/usr/' + LIBDIR_SCHEMA))
 opts.Add(PathOption('PNG_INCLUDES', 'Search path for libpng include files', '/usr/include'))
@@ -94,6 +95,12 @@ for path in [env['BOOST_LIBS'],
     if path not in env['LIBPATH']: env['LIBPATH'].append(path)
     
 env.ParseConfig(env['FREETYPE_CONFIG'] + ' --libs --cflags')
+
+if env['XML2_CONFIG']:
+    env.ParseConfig(env['XML2_CONFIG'] + ' --libs --cflags')
+    env.MergeFlags('-DHAVE_LIBXML2');
+else:
+    env.MergeFlags('-DBOOST_PROPERTY_TREE_XML_PARSER_TINYXML -DTIXML_USE_STL');
 
 if env['BIDI']:
     env.Append(CXXFLAGS = '-DUSE_FRIBIDI')
@@ -224,10 +231,12 @@ env = conf.Finish()
 if env['PLATFORM'] == 'Darwin': pthread = ''
 else: pthread = '-pthread'
 
+common_cxx_flags = '-ansi -Wall %s -ftemplate-depth-100  -D%s ' % (pthread, env['PLATFORM'].upper());
+
 if env['DEBUG']:
-    env.Append(CXXFLAGS = '-ansi -Wall %s -ftemplate-depth-100 -O0 -fno-inline -g -DDEBUG -DMAPNIK_DEBUG -D%s ' % (pthread, env['PLATFORM'].upper()))
+    env.Append(CXXFLAGS = common_cxx_flags + '-O0 -fno-inline -g -DDEBUG -DMAPNIK_DEBUG')
 else:
-    env.Append(CXXFLAGS = '-ansi -Wall %s -ftemplate-depth-100 -O2 -finline-functions -Wno-inline -DNDEBUG -D%s' % (pthread,env['PLATFORM'].upper()))
+    env.Append(CXXFLAGS = common_cxx_flags + '-O2 -finline-functions -Wno-inline -DNDEBUG')
 
 # Install some free default fonts
 
