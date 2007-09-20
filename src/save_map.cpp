@@ -26,18 +26,317 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/tokenizer.hpp>
+#include <boost/optional.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 // mapnik
 #include <mapnik/save_map.hpp>
+#include <mapnik/ptree_helpers.hpp>
 
 namespace mapnik 
 {
-    void save_map(Map & map, std::string const& filename)
+    using boost::property_tree::ptree;
+    using boost::optional;
+
+    std::string guess_type( const std::string & filename )
     {
-        using boost::property_tree::ptree;
+        std::string::size_type idx = filename.find_last_of(".");
+        if ( idx != std::string::npos ) {
+            return filename.substr( idx + 1 );
+        }
+        return "<unknown>";
+    }
+    class serialize_symbolizer : public boost::static_visitor<>
+    {
+        public:
+            serialize_symbolizer( ptree & r ) : rule_(r) {}
+
+            void operator () ( const  point_symbolizer & sym )
+            {
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("PointSymbolizer", ptree()))->second;
+
+                add_image_attributes( sym_node, sym );
+            }
+
+            void operator () ( const line_symbolizer & sym )
+            {
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("LineSymbolizer", ptree()))->second;
+                const stroke & strk = sym.get_stroke();
+                stroke dfl = stroke();
+
+                if ( strk.get_color() != dfl.get_color() )
+                {
+                    set_css( sym_node, "stroke", strk.get_color() );    
+                }
+                if ( strk.get_width() != dfl.get_width() )
+                {
+                    set_css( sym_node, "stroke-width", strk.get_width() );    
+                }
+                if ( strk.get_opacity() != dfl.get_opacity() )
+                {
+                    set_css( sym_node, "stroke-opacity", strk.get_opacity() );    
+                }
+                if ( strk.get_line_join() != dfl.get_line_join() )
+                {
+                    set_css( sym_node, "stroke-linejoin", strk.get_line_join() );    
+                }
+                if ( strk.get_line_cap() != dfl.get_line_cap() )
+                {
+                    set_css( sym_node, "stroke-linecap", strk.get_line_cap() );    
+                }
+                if ( ! strk.get_dash_array().empty() )
+                {
+                    std::ostringstream os;
+                    const dash_array & dashes = strk.get_dash_array();
+                    for (unsigned i = 0; i < dashes.size(); ++i) {
+                        os << dashes[i].first << ", " << dashes[i].second;
+                        if ( i + 1 < dashes.size() ) os << ", ";
+                    }
+                    set_css( sym_node, "stroke-dasharray", os.str() );    
+                }
+            }
+
+            void operator () ( const line_pattern_symbolizer & sym )
+            {
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("LinePatternSymbolizer",
+                        ptree()))->second;
+
+                add_image_attributes( sym_node, sym );
+            }
+
+            void operator () ( const polygon_symbolizer & sym )
+            {
+                // TODO:
+            }
+
+            void operator () ( const polygon_pattern_symbolizer & sym )
+            {
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("PolygonPatternSymbolizer",
+                        ptree()))->second;
+
+                add_image_attributes( sym_node, sym );
+            }
+
+            void operator () ( const raster_symbolizer & sym )
+            {
+                rule_.push_back(
+                        ptree::value_type("RasterSymbolizer", ptree()));
+            }
+
+            void operator () ( const shield_symbolizer & sym )
+            {
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("ShieldSymbolizer",
+                        ptree()))->second;
+
+                add_font_attributes( sym_node, sym);
+                add_image_attributes( sym_node, sym);
+            }
+
+            void operator () ( const text_symbolizer & sym )
+            {
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("TextSymbolizer",
+                        ptree()))->second;
+
+                add_font_attributes( sym_node, sym);
+
+                // pseudo-default-construct a text_symbolizer. It is used
+                // to avoid printing ofattributes with default values without 
+                //repeating the default values here.
+                text_symbolizer dfl("<no default>", "<no default>",
+                                    0, Color(0,0,0) );
+                position displacement = sym.get_displacement();
+                if ( displacement.get<0>() != dfl.get_displacement().get<0>() )
+                {
+                    set_attr( sym_node, "dx", displacement.get<0>() );    
+                }
+                if ( displacement.get<1>() != dfl.get_displacement().get<1>() )
+                {
+                    set_attr( sym_node, "dy", displacement.get<1>() );    
+                }
+
+                if (sym.get_label_placement() != dfl.get_label_placement() )
+                {
+                    set_attr( sym_node, "placement", sym.get_label_placement() );    
+                }
+                if (sym.get_halo_radius() != dfl.get_halo_radius())
+                {
+                    set_attr( sym_node, "halo_radius", sym.get_halo_radius() );    
+                }
+                const Color & c = sym.get_halo_fill();
+                if ( c != dfl.get_halo_fill() )
+                {
+                    set_attr( sym_node, "halo_fill", c );    
+                }
+                if (sym.get_text_ratio() != dfl.get_text_ratio() )
+                {
+                    set_attr( sym_node, "text_ratio", sym.get_text_ratio() );    
+                }
+                if (sym.get_wrap_width() != dfl.get_wrap_width())
+                {
+                    set_attr( sym_node, "wrap_width", sym.get_wrap_width() );    
+                }
+                if (sym.get_label_spacing() != dfl.get_label_spacing())
+                {
+                    set_attr( sym_node, "spacing", sym.get_label_spacing() );    
+                }
+                if (sym.get_minimum_distance() != dfl.get_minimum_distance())
+                {
+                    set_attr( sym_node, "min_distance", sym.get_minimum_distance() );    
+                }
+                if (sym.get_allow_overlap() != dfl.get_allow_overlap() )
+                {
+                    set_attr( sym_node, "allow_overlap", sym.get_allow_overlap() );    
+                }
+            }
+
+            void operator () ( const building_symbolizer & sym )
+            {
+                // TODO
+            }
+        private:
+            serialize_symbolizer();
+            void add_image_attributes(ptree & node, const symbolizer_with_image & sym)
+            {
+                const std::string & filename = sym.get_filename();
+                if ( ! filename.empty() ) {
+                    set_attr( node, "file", filename );
+                    set_attr( node, "type", guess_type( filename ) );
+
+                    boost::shared_ptr<ImageData32> img = sym.get_image();
+                    if ( img )
+                    {
+                        if ( img->width() > 0)
+                        {
+                            set_attr( node, "width", img->width() );
+                        }
+                        if ( img->height() > 0)
+                        {
+                            set_attr( node, "height", img->height() );
+                        }
+                    }
+
+                }
+            }
+            void add_font_attributes(ptree & node, const text_symbolizer & sym)
+            {
+                const std::string & name = sym.get_name();
+                if ( ! name.empty() ) {
+                    set_attr( node, "name", name );    
+                }
+                const std::string & face_name = sym.get_face_name();
+                if ( ! face_name.empty() ) {
+                    set_attr( node, "face_name", face_name );    
+                }
+                
+                set_attr( node, "size", sym.get_text_size() );    
+                set_attr( node, "fill", sym.get_fill() );    
+            }
+            ptree & rule_;
+    };
+
+    void serialize_rule( ptree & style_node, const rule_type & rule)
+    {
+        ptree & rule_node = style_node.push_back(
+                ptree::value_type("Rule", ptree() ))->second;
+        
+        const std::string & name = rule.get_name();
+        if ( ! name.empty() )
+        {
+            set_attr(rule_node, "name", name);
+        }
+        const std::string & title = rule.get_title();
+        if ( ! title.empty() )
+        {
+            set_attr(rule_node, "title", title);
+        }
+
+        if ( rule.has_else_filter() )
+        {
+            rule_node.push_back( ptree::value_type(
+                    "ElseFilter", ptree()));
+        }
+        else
+        {
+            if ( rule.get_filter() )
+            {
+                std::string filter = rule.get_filter()->to_string();
+                rule_node.push_back( ptree::value_type(
+                            "Filter", ptree()))->second.put_own( filter );
+            }
+        }
+
+        double min_scale = rule.get_min_scale();
+        if (min_scale > 0)
+        {
+            rule_node.push_back( ptree::value_type(
+                    "MinScaleDenominator", ptree()))->second.put_own( min_scale );
+        }
+
+        double max_scale = rule.get_max_scale();
+        if (max_scale < std::numeric_limits<double>::infinity() )
+        {
+            rule_node.push_back( ptree::value_type(
+                    "MaxScaleDenominator", ptree()))->second.put_own( max_scale );
+        }
+
+
+
+        symbolizers::const_iterator begin = rule.get_symbolizers().begin();
+        symbolizers::const_iterator end = rule.get_symbolizers().end();
+        serialize_symbolizer serializer( rule_node );
+        std::for_each( begin, end , boost::apply_visitor( serializer ));
+        
+    }
+
+    void serialize_style( ptree & map_node, Map::const_style_iterator style_it )
+    {
+        const feature_type_style & style = style_it->second;
+        const std::string & name = style_it->first;
+        
+        ptree & style_node = map_node.push_back(
+                ptree::value_type("Style", ptree()))->second;
+
+        set_attr(style_node, "name", name);
+
+        rules::const_iterator it = style.get_rules().begin();
+        rules::const_iterator end = style.get_rules().end();
+        for (; it != end; ++it)
+        {
+            serialize_rule( style_node, * it );    
+        }
+
+    }
+
+    void save_map(Map const & map, std::string const& filename)
+    {
         ptree pt;
         // TODO
+
+        ptree & map_node = pt.push_back(ptree::value_type("Map", ptree() ))->second;
+
+        set_attr( map_node, "srs", map.srs() );
+        
+        optional<Color> c = map.background();
+        if ( c )
+        {
+            set_attr( map_node, "bgcolor", * c );    
+        }
+
+        Map::const_style_iterator it = map.styles().begin();
+        Map::const_style_iterator end = map.styles().end();
+        for (; it != end; ++it)
+        {
+            serialize_style( map_node, it);
+        }
+
+        
         write_xml(filename,pt);
     }
+
 }

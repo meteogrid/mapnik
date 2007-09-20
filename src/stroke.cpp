@@ -20,23 +20,24 @@
  *
  *****************************************************************************/
 
-//$Id$
-// stl
-#include <iostream>
-// mapnik
-#include <mapnik/image_reader.hpp>
-#include <mapnik/line_pattern_symbolizer.hpp>
+#include <mapnik/stroke.hpp>
 
-namespace mapnik
-{
-    
-    line_pattern_symbolizer::line_pattern_symbolizer(std::string const& file,
-                                                     std::string const& type,
-                                                     unsigned width,unsigned height) 
-        : symbolizer_with_image( file, type, width, height )
-    { }
+static const char * line_cap_strings[] = {
+    "butt",
+    "square",
+    "round",
+    ""
+};
 
-    line_pattern_symbolizer::line_pattern_symbolizer(line_pattern_symbolizer const& rhs)
-        : symbolizer_with_image(rhs) {}
+IMPLEMENT_ENUM( mapnik::line_cap_e, line_cap_strings );
 
-}
+static const char * line_join_strings[] = {
+    "miter",
+    "miter_revert",
+    "round",
+    "bevel",
+    ""
+};
+
+IMPLEMENT_ENUM( mapnik::line_join_e, line_join_strings );
+

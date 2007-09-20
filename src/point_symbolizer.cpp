@@ -33,47 +33,24 @@
 namespace mapnik
 {
     point_symbolizer::point_symbolizer()
-        : symbol_(new ImageData32(4,4)),
+        : symbolizer_with_image(boost::shared_ptr<ImageData32>(new ImageData32(4,4))),
           overlap_(false)
     {
         //default point symbol is black 4x4px square
-        symbol_->set(0xff000000);
+        image_->set(0xff000000);
     }
     
     point_symbolizer::point_symbolizer(std::string const& file,
                                        std::string const& type,
                                        unsigned width,unsigned height) 
-        : symbol_(new ImageData32(width,height)),
+        : symbolizer_with_image(file, type, width, height),
           overlap_(false)
-    {
-        try 
-        {
-            boost::scoped_ptr<ImageReader> reader(get_image_reader(type,file));
-            if (reader.get())
-            {
-                reader->read(0,0,*symbol_);		
-            }
-        } 
-        catch (...) 
-        {
-            std::clog<<"exception caught..." << std::endl;
-        }
-    }
+    { }
     
     point_symbolizer::point_symbolizer(point_symbolizer const& rhs)
-        : symbol_(rhs.symbol_),
+        : symbolizer_with_image(rhs),
           overlap_(rhs.overlap_)
     {}
-    
-    void point_symbolizer::set_data( boost::shared_ptr<ImageData32> symbol)
-    {
-        symbol_ = symbol;
-    }
-
-    boost::shared_ptr<ImageData32> const& point_symbolizer::get_data() const
-    {
-        return symbol_;
-    }
     
     void point_symbolizer::set_allow_overlap(bool overlap)
     {

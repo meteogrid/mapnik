@@ -138,7 +138,7 @@ BOOST_PYTHON_MODULE(_mapnik)
     def("scale_denominator", &scale_denominator);
     
     def("load_map",&load_map,"load Map object from XML");
-    def("save_map",&load_map,"sace Map object to XML");
+    def("save_map",&save_map,"save Map object to XML");
     
     using mapnik::symbolizer;
     class_<symbolizer>("Symbolizer",no_init)
