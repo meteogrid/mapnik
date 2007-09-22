@@ -37,16 +37,16 @@ using namespace std;
 
 namespace mapnik 
 {
-    class xml2_loader : boost::noncopyable
+    class libxml2_loader : boost::noncopyable
     {
         public:
-            xml2_loader() :
+            libxml2_loader() :
                 ctx_( 0 )
             {
                 LIBXML_TEST_VERSION;
             }
 
-            ~xml2_loader()
+            ~libxml2_loader()
             {
                 if (ctx_ && ctx_->myDoc)
                 {
@@ -173,7 +173,7 @@ namespace mapnik
 
     void read_xml2( std::string const & filename, boost::property_tree::ptree & pt)
     {
-        xml2_loader loader;
+        libxml2_loader loader;
         loader.load( filename, pt );
     }
 

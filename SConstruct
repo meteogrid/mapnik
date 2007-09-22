@@ -108,7 +108,7 @@ if env['XMLPARSER'] == 'tinyxml':
     env.Append(CXXFLAGS = '-DBOOST_PROPERTY_TREE_XML_PARSER_TINYXML -DTIXML_USE_STL')
 elif env['XMLPARSER'] == 'libxml2':
     env.ParseConfig(env['XML2_CONFIG'] + ' --libs --cflags')
-    env.MergeFlags('-DHAVE_LIBXML2');
+    env.Append(CXXFLAGS = '-DHAVE_LIBXML2');
     
 C_LIBSHEADERS = [
     ['m', 'math.h', True],

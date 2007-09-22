@@ -166,7 +166,8 @@ namespace mapnik {
     void set_css(boost::property_tree::ptree & pt, const std::string & name, const T & v)
     {
         boost::property_tree::ptree & css_node = pt.push_back(
-            boost::property_tree::ptree::value_type("CssParameter", boost::property_tree::ptree()))->second;
+            boost::property_tree::ptree::value_type("CssParameter", 
+            boost::property_tree::ptree()))->second;
         css_node.put("<xmlattr>.name", name );
         css_node.put_own( v );
     }

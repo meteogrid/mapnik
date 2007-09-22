@@ -109,7 +109,18 @@ namespace mapnik
 
             void operator () ( const polygon_symbolizer & sym )
             {
-                // TODO:
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("PolygonSymbolizer", ptree()))->second;
+                polygon_symbolizer dfl;
+
+                if ( sym.get_fill() != dfl.get_fill() )
+                {
+                    set_css( sym_node, "fill", sym.get_fill() );    
+                }
+                if ( sym.get_opacity() != dfl.get_opacity() )
+                {
+                    set_css( sym_node, "opacity", sym.get_opacity() );    
+                }
             }
 
             void operator () ( const polygon_pattern_symbolizer & sym )
@@ -145,59 +156,22 @@ namespace mapnik
 
                 add_font_attributes( sym_node, sym);
 
-                // pseudo-default-construct a text_symbolizer. It is used
-                // to avoid printing ofattributes with default values without 
-                //repeating the default values here.
-                text_symbolizer dfl("<no default>", "<no default>",
-                                    0, Color(0,0,0) );
-                position displacement = sym.get_displacement();
-                if ( displacement.get<0>() != dfl.get_displacement().get<0>() )
-                {
-                    set_attr( sym_node, "dx", displacement.get<0>() );    
-                }
-                if ( displacement.get<1>() != dfl.get_displacement().get<1>() )
-                {
-                    set_attr( sym_node, "dy", displacement.get<1>() );    
-                }
-
-                if (sym.get_label_placement() != dfl.get_label_placement() )
-                {
-                    set_attr( sym_node, "placement", sym.get_label_placement() );    
-                }
-                if (sym.get_halo_radius() != dfl.get_halo_radius())
-                {
-                    set_attr( sym_node, "halo_radius", sym.get_halo_radius() );    
-                }
-                const Color & c = sym.get_halo_fill();
-                if ( c != dfl.get_halo_fill() )
-                {
-                    set_attr( sym_node, "halo_fill", c );    
-                }
-                if (sym.get_text_ratio() != dfl.get_text_ratio() )
-                {
-                    set_attr( sym_node, "text_ratio", sym.get_text_ratio() );    
-                }
-                if (sym.get_wrap_width() != dfl.get_wrap_width())
-                {
-                    set_attr( sym_node, "wrap_width", sym.get_wrap_width() );    
-                }
-                if (sym.get_label_spacing() != dfl.get_label_spacing())
-                {
-                    set_attr( sym_node, "spacing", sym.get_label_spacing() );    
-                }
-                if (sym.get_minimum_distance() != dfl.get_minimum_distance())
-                {
-                    set_attr( sym_node, "min_distance", sym.get_minimum_distance() );    
-                }
-                if (sym.get_allow_overlap() != dfl.get_allow_overlap() )
-                {
-                    set_attr( sym_node, "allow_overlap", sym.get_allow_overlap() );    
-                }
             }
 
             void operator () ( const building_symbolizer & sym )
             {
-                // TODO
+                ptree & sym_node = rule_.push_back(
+                        ptree::value_type("BuildingSymbolizer", ptree()))->second;
+                building_symbolizer dfl;
+
+                if ( sym.get_fill() != dfl.get_fill() )
+                {
+                    set_css( sym_node, "fill", sym.get_fill() );    
+                }
+                if ( sym.get_opacity() != dfl.get_opacity() )
+                {
+                    set_css( sym_node, "fill-opacity", sym.get_opacity() );    
+                }
             }
         private:
             serialize_symbolizer();
@@ -236,6 +210,56 @@ namespace mapnik
                 
                 set_attr( node, "size", sym.get_text_size() );    
                 set_attr( node, "fill", sym.get_fill() );    
+
+                // pseudo-default-construct a text_symbolizer. It is used
+                // to avoid printing ofattributes with default values without 
+                //repeating the default values here.
+                text_symbolizer dfl("<no default>", "<no default>",
+                                    0, Color(0,0,0) );
+
+                position displacement = sym.get_displacement();
+                if ( displacement.get<0>() != dfl.get_displacement().get<0>() )
+                {
+                    set_attr( node, "dx", displacement.get<0>() );    
+                }
+                if ( displacement.get<1>() != dfl.get_displacement().get<1>() )
+                {
+                    set_attr( node, "dy", displacement.get<1>() );    
+                }
+
+                if (sym.get_label_placement() != dfl.get_label_placement() )
+                {
+                    set_attr( node, "placement", sym.get_label_placement() );    
+                }
+                if (sym.get_halo_radius() != dfl.get_halo_radius())
+                {
+                    set_attr( node, "halo_radius", sym.get_halo_radius() );    
+                }
+                const Color & c = sym.get_halo_fill();
+                if ( c != dfl.get_halo_fill() )
+                {
+                    set_attr( node, "halo_fill", c );    
+                }
+                if (sym.get_text_ratio() != dfl.get_text_ratio() )
+                {
+                    set_attr( node, "text_ratio", sym.get_text_ratio() );    
+                }
+                if (sym.get_wrap_width() != dfl.get_wrap_width())
+                {
+                    set_attr( node, "wrap_width", sym.get_wrap_width() );    
+                }
+                if (sym.get_label_spacing() != dfl.get_label_spacing())
+                {
+                    set_attr( node, "spacing", sym.get_label_spacing() );    
+                }
+                if (sym.get_minimum_distance() != dfl.get_minimum_distance())
+                {
+                    set_attr( node, "min_distance", sym.get_minimum_distance() );    
+                }
+                if (sym.get_allow_overlap() != dfl.get_allow_overlap() )
+                {
+                    set_attr( node, "allow_overlap", sym.get_allow_overlap() );    
+                }
             }
             ptree & rule_;
     };
@@ -245,15 +269,14 @@ namespace mapnik
         ptree & rule_node = style_node.push_back(
                 ptree::value_type("Rule", ptree() ))->second;
         
-        const std::string & name = rule.get_name();
-        if ( ! name.empty() )
+        rule_type dfl;
+        if ( rule.get_name() != dfl.get_name() )
         {
-            set_attr(rule_node, "name", name);
+            set_attr(rule_node, "name", rule.get_name());
         }
-        const std::string & title = rule.get_title();
-        if ( ! title.empty() )
+        if ( rule.get_title() != dfl.get_title() )
         {
-            set_attr(rule_node, "title", title);
+            set_attr(rule_node, "title", rule.get_title());
         }
 
         if ( rule.has_else_filter() )
@@ -263,35 +286,34 @@ namespace mapnik
         }
         else
         {
-            if ( rule.get_filter() )
+            // filters are not comparable, so compare strings for now
+            std::string filter = rule.get_filter()->to_string();
+            std::string default_filter = dfl.get_filter()->to_string();
+            if ( filter != default_filter)
             {
-                std::string filter = rule.get_filter()->to_string();
                 rule_node.push_back( ptree::value_type(
                             "Filter", ptree()))->second.put_own( filter );
             }
         }
 
-        double min_scale = rule.get_min_scale();
-        if (min_scale > 0)
+        if (rule.get_min_scale() != dfl.get_min_scale())
         {
-            rule_node.push_back( ptree::value_type(
-                    "MinScaleDenominator", ptree()))->second.put_own( min_scale );
+            ptree & min_scale = rule_node.push_back( ptree::value_type(
+                    "MinScaleDenominator", ptree()))->second;
+            min_scale.put_own( rule.get_min_scale() );
         }
 
-        double max_scale = rule.get_max_scale();
-        if (max_scale < std::numeric_limits<double>::infinity() )
+        if (rule.get_max_scale() != dfl.get_max_scale() )
         {
-            rule_node.push_back( ptree::value_type(
-                    "MaxScaleDenominator", ptree()))->second.put_own( max_scale );
+            ptree & max_scale = rule_node.push_back( ptree::value_type(
+                    "MaxScaleDenominator", ptree()))->second;
+            max_scale.put_own( rule.get_max_scale() );
         }
-
-
 
         symbolizers::const_iterator begin = rule.get_symbolizers().begin();
         symbolizers::const_iterator end = rule.get_symbolizers().end();
         serialize_symbolizer serializer( rule_node );
         std::for_each( begin, end , boost::apply_visitor( serializer ));
-        
     }
 
     void serialize_style( ptree & map_node, Map::const_style_iterator style_it )
@@ -313,10 +335,58 @@ namespace mapnik
 
     }
 
+    void serialize_datasource( ptree & layer_node, datasource_ptr datasource)
+    {
+        ptree & datasource_node = layer_node.push_back(
+                ptree::value_type("Datasource", ptree()))->second;
+
+        parameters::const_iterator it = datasource->params().begin();
+        parameters::const_iterator end = datasource->params().end();
+        for (; it != end; ++it)
+        {
+            boost::property_tree::ptree & param_node = datasource_node.push_back(
+                    boost::property_tree::ptree::value_type("Parameter", 
+                    boost::property_tree::ptree()))->second;
+            param_node.put("<xmlattr>.name", it->first );
+            param_node.put_own( it->second );
+                
+        }
+    }
+
+    void serialize_layer( ptree & map_node, const Layer & layer ) 
+    {
+        ptree & layer_node = map_node.push_back(
+                ptree::value_type("Layer", ptree()))->second;
+        if ( layer.name() != "" )
+        {
+            set_attr( layer_node, "name", layer.name() );
+        }
+        if ( layer.srs() != "" )
+        {
+            set_attr( layer_node, "srs", layer.srs() );
+        }
+        set_attr<boolean>( layer_node, "status", layer.isActive() );
+        set_attr<boolean>( layer_node, "clear_label_cache", layer.clear_label_cache() );
+
+        std::vector<std::string> const& style_names = layer.styles();
+        for (unsigned i = 0; i < style_names.size(); ++i)
+        {
+            boost::property_tree::ptree & style_node = layer_node.push_back(
+                    boost::property_tree::ptree::value_type("StyleName",
+                    boost::property_tree::ptree()))->second;
+            style_node.put_own( style_names[i] );
+        }
+
+        datasource_ptr datasource = layer.datasource();
+        if ( datasource )
+        {
+            serialize_datasource( layer_node, datasource );
+        }
+    }
+
     void save_map(Map const & map, std::string const& filename)
     {
         ptree pt;
-        // TODO
 
         ptree & map_node = pt.push_back(ptree::value_type("Map", ptree() ))->second;
 
@@ -333,6 +403,12 @@ namespace mapnik
         for (; it != end; ++it)
         {
             serialize_style( map_node, it);
+        }
+
+        std::vector<Layer> const & layers = map.layers();
+        for (unsigned i = 0; i < layers.size(); ++i )
+        {
+            serialize_layer( map_node, layers[i] );
         }
 
         
