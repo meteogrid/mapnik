@@ -213,7 +213,8 @@ namespace mapnik
 
                 // pseudo-default-construct a text_symbolizer. It is used
                 // to avoid printing ofattributes with default values without 
-                //repeating the default values here.
+                // repeating the default values here.
+                // maybe add a real, explicit default-ctor?
                 text_symbolizer dfl("<no default>", "<no default>",
                                     0, Color(0,0,0) );
 
@@ -365,8 +366,8 @@ namespace mapnik
         {
             set_attr( layer_node, "srs", layer.srs() );
         }
-        set_attr<boolean>( layer_node, "status", layer.isActive() );
-        set_attr<boolean>( layer_node, "clear_label_cache", layer.clear_label_cache() );
+        set_attr/*<bool>*/( layer_node, "status", layer.isActive() );
+        set_attr/*<bool>*/( layer_node, "clear_label_cache", layer.clear_label_cache() );
 
         std::vector<std::string> const& style_names = layer.styles();
         for (unsigned i = 0; i < style_names.size(); ++i)

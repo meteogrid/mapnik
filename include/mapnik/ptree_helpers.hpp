@@ -154,13 +154,15 @@ namespace mapnik {
         pt.put("<xmlattr>." + name, v);
     }
 
-    class boolean;
-
+    /*
     template <>
-    void set_attr(boost::property_tree::ptree & pt, const std::string & name, const bool & v)
+    void set_attr<bool>(boost::property_tree::ptree & pt, const std::string & name, const bool & v)
     {
         pt.put("<xmlattr>." + name, boolean(v));
     }
+    */
+
+    class boolean;
 
     template <typename T>
     void set_css(boost::property_tree::ptree & pt, const std::string & name, const T & v)
@@ -200,6 +202,7 @@ namespace mapnik {
     DEFINE_NAME_TRAIT( float );
     DEFINE_NAME_TRAIT( unsigned );
     DEFINE_NAME_TRAIT( boolean );
+    DEFINE_NAME_TRAIT_WITH_NAME( int, "integer" );
     DEFINE_NAME_TRAIT_WITH_NAME( std::string, "string" );
     DEFINE_NAME_TRAIT_WITH_NAME( Color, "color" );
 

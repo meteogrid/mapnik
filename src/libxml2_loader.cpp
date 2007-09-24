@@ -91,7 +91,7 @@ namespace mapnik
                         config_error ex( msg );
 
                         os.str("");
-                        os << "in file: " << error->file << " at line: "
+                        os << "in file '" << error->file << "' at line "
                             << error->line;
 
                         ex.append_context( os.str() );

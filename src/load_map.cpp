@@ -31,14 +31,16 @@
 #include <boost/static_assert.hpp>
 
 // mapnik
+#include <mapnik/image_reader.hpp>
 #include <mapnik/color.hpp>
 #include <mapnik/color_factory.hpp>
 #include <mapnik/filter_factory.hpp>
 #include <mapnik/layer.hpp>
 #include <mapnik/datasource_cache.hpp>
+#include <mapnik/font_engine_freetype.hpp>
 
-#include <mapnik/config_helpers.hpp>
-#include <mapnik/load_map_xml2.hpp>
+#include <mapnik/ptree_helpers.hpp>
+#include <mapnik/libxml2_loader.hpp>
 #include <mapnik/load_map.hpp>
 
 using boost::lexical_cast;
@@ -49,27 +51,37 @@ using boost::property_tree::ptree;
 using std::cerr;
 using std::endl;
 
-
-
 namespace mapnik 
 {
     using boost::optional;
 
-    void parse_style( Map & map, ptree const & sty);
-    void parse_layer( Map & map, ptree const & lay);
+    class map_parser {
+        public:
+            map_parser( bool strict ) : strict_( strict ) {};
 
-    void parse_rule( feature_type_style & style, ptree const & r);
+            void parse_map( Map & map, ptree const & sty);
+        private:
+            void parse_style( Map & map, ptree const & sty);
+            void parse_layer( Map & map, ptree const & lay);
 
-    void parse_point_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_line_pattern_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_polygon_pattern_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_text_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_shield_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_line_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_polygon_symbolizer( rule_type & rule, ptree const & sym);
-    void parse_building_symbolizer( rule_type & rule, ptree const & sym );
+            void parse_rule( feature_type_style & style, ptree const & r);
 
-    void load_map(Map & map, std::string const& filename)
+            void parse_point_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_line_pattern_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_polygon_pattern_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_text_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_shield_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_line_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_polygon_symbolizer( rule_type & rule, ptree const & sym);
+            void parse_building_symbolizer( rule_type & rule, ptree const & sym );
+
+            void ensure_font_face( const text_symbolizer & text_symbol );
+
+            bool strict_;
+            face_manager<freetype_engine> font_manager_;
+    };
+
+    void load_map(Map & map, std::string const& filename, bool strict)
     {
         ptree pt;
 #ifdef HAVE_LIBXML2
@@ -84,51 +96,63 @@ namespace mapnik
             throw config_error( ex.what() );
         }
 #endif
-       
-        // TODO: trap broken root element
-        ptree const & map_node = pt.get_child("Map");
 
+        map_parser parser( strict );
+        parser.parse_map(map, pt);
+    }
+
+    void map_parser::parse_map( Map & map, ptree const & pt )
+    {
         try
         {
-            optional<Color> bgcolor = get_opt_attr<Color>(map_node, "bgcolor");
-            if (bgcolor) {
-                map.set_background( * bgcolor );
+            ptree const & map_node = pt.get_child("Map");
+
+            try
+            {
+                optional<Color> bgcolor = get_opt_attr<Color>(map_node, "bgcolor");
+                if (bgcolor) {
+                    map.set_background( * bgcolor );
+                }
+
+                map.set_srs( get_attr(map_node, "srs", map.srs() ));
+            }
+            catch (const config_error & ex)
+            {
+                ex.append_context("in node Map");
+                throw;
             }
 
-            map.set_srs( get_attr(map_node, "srs", map.srs() ));
-        }
-        catch (const config_error & ex)
-        {
-            ex.append_context("in node Map");
-            throw;
-        }
-        
-        ptree::const_iterator itr = map_node.begin();
-        ptree::const_iterator end = map_node.end();
-        
-        for (; itr != end; ++itr)
-        {
-            ptree::value_type const& v = *itr;
-            
-            if (v.first == "Style")
-            {
-                parse_style( map, v.second );
-            }
-            else if (v.first == "Layer")
-            {
-                
-                parse_layer(map, v.second );
-            }
-            else if (v.first != "<xmlcomment>" &&
-                     v.first != "<xmlattr>")
-            {
-                throw config_error(std::string("Unknown child node in 'Map'. ") +
-                        "Expected 'Style' or 'Layer' but got '" + v.first + "'");
-            }
-        }
-    }   
+            ptree::const_iterator itr = map_node.begin();
+            ptree::const_iterator end = map_node.end();
 
-    void parse_style( Map & map, ptree const & sty )
+            for (; itr != end; ++itr)
+            {
+                ptree::value_type const& v = *itr;
+
+                if (v.first == "Style")
+                {
+                    parse_style( map, v.second );
+                }
+                else if (v.first == "Layer")
+                {
+
+                    parse_layer(map, v.second );
+                }
+                else if (v.first != "<xmlcomment>" &&
+                        v.first != "<xmlattr>")
+                {
+                    throw config_error(std::string("Unknown child node in 'Map'. ") +
+                            "Expected 'Style' or 'Layer' but got '" + v.first + "'");
+                }
+            }
+        }
+        catch (const boost::property_tree::ptree_bad_path & ex)
+        {
+            throw config_error("Not a map file. Node 'Map' not found.");
+        }
+    }
+
+    void map_parser::parse_style( Map & map, ptree const & sty )
     {
         string name("<missing name>");
         try
@@ -164,7 +188,7 @@ namespace mapnik
         }
     }
 
-    void parse_layer( Map & map, ptree const & lay )
+    void map_parser::parse_layer( Map & map, ptree const & lay )
     {
         std::string name;
         try
@@ -255,7 +279,7 @@ namespace mapnik
         }
     }
 
-    void parse_rule( feature_type_style & style, ptree const & r )
+    void map_parser::parse_rule( feature_type_style & style, ptree const & r )
     {
         std::string name;
         try
@@ -361,9 +385,8 @@ namespace mapnik
         }
     }
 
-    void parse_point_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_point_symbolizer( rule_type & rule, ptree const & sym )
     {
-        // XXX: is this correct?
         try 
         {
             optional<std::string> file =  get_opt_attr<string>(sym, "file");
@@ -376,12 +399,28 @@ namespace mapnik
 
             if (file && type && width && height)
             {
-                point_symbolizer symbol(*file,*type,*width,*height);
-                if (allow_overlap)
+                try
                 {
-                    symbol.set_allow_overlap( * allow_overlap ); // default is 'false'
+                    point_symbolizer symbol(*file,*type,*width,*height);
+                    if (allow_overlap)
+                    {
+                        symbol.set_allow_overlap( * allow_overlap );
+                    }
+                    rule.append(symbol);
                 }
-                rule.append(symbol);
+                catch (ImageReaderException const & ex )
+                {
+                    string msg("Failed to load image file '" + * file +
+                            "': " + ex.what());
+                    if (strict_)
+                    {
+                        throw config_error(msg);
+                    }
+                    else
+                    {
+                        clog << "### WARNING: " << msg << endl;
+                    }
+                }
 
             }
             else if (file || type || width || height)
@@ -406,7 +445,7 @@ namespace mapnik
         }
     }
 
-    void parse_line_pattern_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_line_pattern_symbolizer( rule_type & rule, ptree const & sym )
     {
         try 
         {
@@ -415,7 +454,23 @@ namespace mapnik
             unsigned width = get_attr<unsigned>(sym, "width");
             unsigned height = get_attr<unsigned>(sym, "height");
 
-            rule.append(line_pattern_symbolizer(file,type,width,height));
+            try
+            {
+                rule.append(line_pattern_symbolizer(file,type,width,height));
+            }
+            catch (ImageReaderException const & ex )
+            {
+                string msg("Failed to load image file '" + file +
+                        "': " + ex.what());
+                if (strict_)
+                {
+                    throw config_error(msg);
+                }
+                else
+                {
+                    clog << "### WARNING: " << msg << endl;
+                }
+            }
         }
         catch (const config_error & ex) 
         {
@@ -424,7 +479,7 @@ namespace mapnik
         }
     }
 
-    void parse_polygon_pattern_symbolizer( rule_type & rule,
+    void map_parser::parse_polygon_pattern_symbolizer( rule_type & rule,
                 ptree const & sym )
     {
         try 
@@ -434,7 +489,23 @@ namespace mapnik
             unsigned width = get_attr<unsigned>(sym, "width");
             unsigned height = get_attr<unsigned>(sym, "height");
 
-            rule.append(polygon_pattern_symbolizer(file,type,width,height)); 
+            try
+            {
+                rule.append(polygon_pattern_symbolizer(file,type,width,height)); 
+            }
+            catch (ImageReaderException const & ex )
+            {
+                string msg("Failed to load image file '" + file +
+                        "': " + ex.what());
+                if (strict_)
+                {
+                    throw config_error(msg);
+                }
+                else
+                {
+                    clog << "### WARNING: " << msg << endl;
+                }
+            }
         }
         catch (const config_error & ex) 
         {
@@ -443,7 +514,7 @@ namespace mapnik
         }
     }
 
-    void parse_text_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_text_symbolizer( rule_type & rule, ptree const & sym )
     {
         try
         {
@@ -510,6 +581,11 @@ namespace mapnik
                 text_symbol.set_allow_overlap( * allow_overlap );
             }
 
+            if ( strict_ )
+            {
+                ensure_font_face( text_symbol );
+            }
+
             rule.append(text_symbol);
         }
         catch (const config_error & ex) 
@@ -519,7 +595,7 @@ namespace mapnik
         }
     }
 
-    void parse_shield_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_shield_symbolizer( rule_type & rule, ptree const & sym )
     {
         try
         {
@@ -533,17 +609,34 @@ namespace mapnik
             unsigned width =  get_attr<unsigned>(sym, "width");
             unsigned height =  get_attr<unsigned>(sym, "height");
 
-            shield_symbolizer shield_symbol(name,face_name,size,fill,
-                    image_file,type,width,height);
-
-            // minimum distance between labels
-            optional<unsigned> min_distance = 
-                get_opt_attr<unsigned>(sym, "min_distance");
-            if (min_distance)
+            try
             {
-                shield_symbol.set_minimum_distance(*min_distance);
+                shield_symbolizer shield_symbol(name,face_name,size,fill,
+                        image_file,type,width,height);
+
+                // minimum distance between labels
+                optional<unsigned> min_distance = 
+                    get_opt_attr<unsigned>(sym, "min_distance");
+                if (min_distance)
+                {
+                    shield_symbol.set_minimum_distance(*min_distance);
+                }
+                rule.append(shield_symbol);
             }
-            rule.append(shield_symbol);
+            catch (ImageReaderException const & ex )
+            {
+                    string msg("Failed to load image file '" + image_file +
+                            "': " + ex.what());
+                if (strict_)
+                {
+                    throw config_error(msg);
+                }
+                else
+                {
+                    clog << "### WARNING: " << msg << endl;
+                }
+            }
+
         }
         catch (const config_error & ex) 
         {
@@ -552,7 +645,7 @@ namespace mapnik
         }
     }
 
-    void parse_line_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_line_symbolizer( rule_type & rule, ptree const & sym )
     {
         try
         {
@@ -637,7 +730,7 @@ namespace mapnik
     }
 
 
-    void parse_polygon_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_polygon_symbolizer( rule_type & rule, ptree const & sym )
     {
         try
         {
@@ -672,7 +765,7 @@ namespace mapnik
     }
 
 
-    void parse_building_symbolizer( rule_type & rule, ptree const & sym )
+    void map_parser::parse_building_symbolizer( rule_type & rule, ptree const & sym )
     {
         try {
             building_symbolizer building_sym;
@@ -705,4 +798,13 @@ namespace mapnik
             throw;
         }
     } 
+
+    void map_parser::ensure_font_face( const text_symbolizer & text_symbol )
+    {
+        if ( ! font_manager_.get_face( text_symbol.get_face_name() ) )
+        {
+            throw config_error("Failed to find font face '" +
+                    text_symbol.get_face_name() + "'");
+        }
+    }
 } // end of namespace mapnik
