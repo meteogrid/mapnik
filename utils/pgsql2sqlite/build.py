@@ -38,11 +38,23 @@ source = Split(
 headers = ['#plugins/input/postgis'] + env['CPPPATH'] 
 
 
-libraries = []
-boost_program_options = 'boost_program_options%s' % env['BOOST_APPEND']
-libraries.extend([boost_program_options,'sqlite3','pq','mapnik2'])
+libraries = ['pq','intl','ssl','crypto']
 
-pgsql2sqlite = program_env.Program('pgsql2sqlite', source, CPPPATH=headers, LIBS=libraries, LINKFLAGS=env['CUSTOM_LDFLAGS'])
+# Link Library to Dependencies
+libraries.append('mapnik2')
+libraries.append(env['ICU_LIB_NAME'])
+boost_program_options = 'boost_program_options%s' % env['BOOST_APPEND']
+libraries.extend([boost_program_options,'sqlite3','mapnik2'])
+
+linkflags = env['CUSTOM_LDFLAGS']
+linkflags += ' -framework Kerberos '
+linkflags += ' -framework Foundation '
+linkflags += ' -framework LDAP '
+linkflags += ' -liconv '
+
+
+pgsql2sqlite = program_env.Program('pgsql2sqlite', source, CPPPATH=headers, LIBS=libraries, LINKFLAGS=linkflags)
+
 Depends(pgsql2sqlite, env.subst('../../src/%s' % env['MAPNIK_LIB_NAME']))
 
 if 'uninstall' not in COMMAND_LINE_TARGETS:
