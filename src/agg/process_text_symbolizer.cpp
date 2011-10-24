@@ -2,7 +2,7 @@
  *
  * This file is part of Mapnik (c++ mapping toolkit)
  *
- * Copyright (C) 2010 Artem Pavlenko
+ * Copyright (C) 2011 Artem Pavlenko
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -110,7 +110,7 @@ void agg_renderer<T>::process(text_symbolizer const& sym,
         ren.set_opacity(sym.get_text_opacity());
 
         box2d<double> dims(0,0,width_,height_);
-        placement_finder<label_collision_detector4> finder(detector_,dims);
+        placement_finder<label_collision_detector4> finder(*detector_,dims);
 
         string_info info(text);
 
