@@ -1597,20 +1597,21 @@ if not HELP_REQUESTED:
         rm_path('CAIROMM_CPPPATHS')
 
     if env['PATH_REPLACE']:
-        search,replace = env['PATH_REPLACE'].split(':')
-        if search in env['ENV']['PATH']:
-            env['ENV']['PATH'] = os.path.abspath(env['ENV']['PATH'].replace(search,replace))
-        def replace_path(set,s,r):
-            idx = 0
-            for i in env[set]:
-                if s in i:
-                    env[set][idx] = os.path.abspath(env[set][idx].replace(s,r))
-                idx +=1
-        replace_path('LIBPATH',search,replace)
-        replace_path('CPPPATH',search,replace)
-        replace_path('CXXFLAGS',search,replace)
-        replace_path('CAIROMM_LIBPATHS',search,replace)
-        replace_path('CAIROMM_CPPPATHS',search,replace)
+        searches,replace = env['PATH_REPLACE'].split(':')
+        for search in searches.split(','):
+            if search in env['ENV']['PATH']:
+                env['ENV']['PATH'] = os.path.abspath(env['ENV']['PATH'].replace(search,replace))
+            def replace_path(set,s,r):
+                idx = 0
+                for i in env[set]:
+                    if s in i:
+                        env[set][idx] = os.path.abspath(env[set][idx].replace(s,r))
+                    idx +=1
+            replace_path('LIBPATH',search,replace)
+            replace_path('CPPPATH',search,replace)
+            replace_path('CXXFLAGS',search,replace)
+            replace_path('CAIROMM_LIBPATHS',search,replace)
+            replace_path('CAIROMM_CPPPATHS',search,replace)
         
     # export env so it is available in build.py files
     Export('env')
