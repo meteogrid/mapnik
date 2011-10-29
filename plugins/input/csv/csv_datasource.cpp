@@ -14,6 +14,7 @@
 #include <mapnik/geometry.hpp>
 #include <mapnik/memory_featureset.hpp>
 #include <mapnik/wkt/wkt_factory.hpp>
+#include <mapnik/json/json_factory.hpp>
 #include <mapnik/ptree_helpers.hpp> // mapnik::boolean
 
 // stl
@@ -70,6 +71,8 @@ csv_datasource::csv_datasource(parameters const& params, bool bind)
         - better error messages (add filepath) if not reading from string
         - move to spirit to tokenize and add character level error feedback:
           http://boost-spirit.com/home/articles/qi-example/tracking-the-input-position-while-parsing/
+      
+      csv reference: http://tools.ietf.org/html/rfc4180
     */
     
     boost::optional<std::string> inline_string = params_.get<std::string>("inline");
@@ -235,9 +238,11 @@ void csv_datasource::parse_csv(T& stream,
     typedef boost::tokenizer< escape_type > Tokenizer;
 
     int line_number(1);
+    bool has_json_field = false;
     bool has_wkt_field = false;
     bool has_lat_field = false;
     bool has_lon_field = false;
+    unsigned json_idx;
     unsigned wkt_idx;
     unsigned lat_idx;
     unsigned lon_idx;
@@ -348,9 +353,62 @@ void csv_datasource::parse_csv(T& stream,
 
     if (!has_wkt_field && (!has_lon_field || !has_lat_field) )
     {
-        std::ostringstream s;
-        s << "CSV Plugin: could not detect column headers with the name of wkt ,x/y, or latitude/longitude - this is required for reading geometry data";
-        throw mapnik::datasource_exception(s.str());
+        int file_pos = stream.tellg();
+        // inspect second row looking for likely geometry data
+        while (std::getline(stream,csv_line,newline))
+        {
+            // skip blank lines
+            if (csv_line.empty()){
+                continue;
+            }
+    
+            try
+            {
+                Tokenizer tok(csv_line, grammer);
+                Tokenizer::iterator beg = tok.begin();
+                int idx = -1;
+                for (; beg != tok.end(); ++beg)
+                {
+                    ++idx;
+                    std::string val = boost::trim_copy(*beg);
+                    if (!val.empty())
+                    {
+                        if (boost::algorithm::icontains(val,"coordinates"))
+                        {
+                            has_json_field =  true;
+                            json_idx = idx;
+                            break;
+                        }
+                        // todo - try to detect WKT data
+                    }
+                }
+            }
+            catch (const std::exception & ex )
+            {
+                std::ostringstream s;
+                s << "CSV Plugin: unexpected error parsing line: " << line_number
+                  << " - found " << headers_.size() << " with values like: " << csv_line << "\n"
+                  << " and got error like: " << ex.what();
+                if (strict_)
+                {
+                    throw mapnik::datasource_exception(s.str());
+                }
+                else
+                {
+                    if (!quiet_) std::clog << s.str() << "\n";
+                }
+            }
+            break;
+        }
+        // set back to second line
+        stream.seekg(file_pos,std::ios::beg);
+        
+        if (!has_json_field)
+        {
+            std::ostringstream s;
+            s << "CSV Plugin: could not detect column headers with the name of wkt, x/y, or latitude/longitude - this is required for reading geometry data";
+            throw mapnik::datasource_exception(s.str());
+        }
     }
 
     int feature_count(0);
@@ -397,9 +455,10 @@ void csv_datasource::parse_csv(T& stream,
             mapnik::feature_ptr feature(mapnik::feature_factory::create(feature_count));
             double x(0);
             double y(0);
+            bool parsed_json = false;
+            bool parsed_wkt = false;
             bool parsed_x = false;
             bool parsed_y = false;
-            bool parsed_wkt = false;
             bool skip = false;
             bool null_geom = false;
             std::vector<std::string> collected;
@@ -421,11 +480,47 @@ void csv_datasource::parse_csv(T& stream,
                 }
                 
                 std::string fld_name(headers_.at(i));
+                // needed?
+                //boost::trim_if(fld_name,boost::is_any_of("\"' "));
                 collected.push_back(fld_name);
                 int value_length = value.length();
                 
+                if (has_json_field)
+                {
+                      if (i == json_idx)
+                      {
+                          // skip empty geoms
+                          if (value.empty())
+                          {
+                              null_geom = true;
+                              break;
+                          }
+                          if (mapnik::from_json(value, feature->paths()))
+                          {
+                              parsed_json = true;
+                          }
+                          else
+                          {
+                              std::ostringstream s;
+                              s << "CSV Plugin: expected well known text geometry: could not parse row "
+                                << line_number
+                                << ",column "
+                                << i << " - found: '"
+                                << value << "'";
+                              if (strict_)
+                              {
+                                  throw mapnik::datasource_exception(s.str());                    
+                              }
+                              else
+                              {
+                                  if (!quiet_) std::clog << s.str() << "\n";
+                              }
+                          }
+                      }
+                
+                }
                 // parse wkt
-                if (has_wkt_field)
+                else if (has_wkt_field)
                 {
                       if (i == wkt_idx)
                       {
@@ -682,9 +777,9 @@ void csv_datasource::parse_csv(T& stream,
                 }
             }
                 
-            if (has_wkt_field)
+            if (has_wkt_field || has_json_field)
             {
-                if (parsed_wkt)
+                if (parsed_wkt || parsed_json)
                 {
                     if (!extent_initialized)
                     {
@@ -822,6 +917,5 @@ mapnik::featureset_ptr csv_datasource::features(mapnik::query const& q) const
 mapnik::featureset_ptr csv_datasource::features_at_point(mapnik::coord2d const& pt) const
 {
     if (!is_bound_) bind();
-    
     throw mapnik::datasource_exception("CSV Plugin: features_at_point is not supported yet");
 }
