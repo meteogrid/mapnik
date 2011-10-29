@@ -57,7 +57,8 @@ system = 'boost_system%s' % env['BOOST_APPEND']
 
 # clear out and re-set libs for this env
 lib_env['LIBS'] = ['freetype','ltdl','png','tiff','z','jpeg','proj',env['ICU_LIB_NAME'],filesystem,system,regex]
-lib_env['LIBS'].append('icudata')
+
+#lib_env['LIBS'].append('icudata')
 
 if len(env['EXTRA_FREETYPE_LIBS']):
     lib_env['LIBS'].extend(copy(env['EXTRA_FREETYPE_LIBS']))
