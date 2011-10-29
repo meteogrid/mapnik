@@ -57,7 +57,7 @@ system = 'boost_system%s' % env['BOOST_APPEND']
 
 # clear out and re-set libs for this env
 lib_env['LIBS'] = ['freetype','ltdl','png','tiff','z','jpeg','proj',env['ICU_LIB_NAME'],filesystem,system,regex]
-
+lib_env['LIBS'].append('icudata')
 
 if len(env['EXTRA_FREETYPE_LIBS']):
     lib_env['LIBS'].extend(copy(env['EXTRA_FREETYPE_LIBS']))
@@ -68,8 +68,6 @@ lib_env['LIBS'].append('xml2')
 
 if env['THREADING'] == 'multi':
     lib_env['LIBS'].append('boost_thread%s' % env['BOOST_APPEND'])
-        
-    
 
 if not env['RUNTIME_LINK'] == 'static':
     if env['INTERNAL_LIBAGG']:
@@ -145,6 +143,7 @@ source = Split(
     raster_colorizer.cpp
     text_placements.cpp
     wkt/wkt_factory.cpp
+    json/json_factory.cpp
     metawriter_inmem.cpp
     metawriter_factory.cpp
     mapped_memory_cache.cpp
@@ -292,11 +291,14 @@ if env['CUSTOM_LDFLAGS']:
 else:
     linkflags = mapnik_lib_link_flag
 
-if env['LINKING'] == 'static':
-    mapnik = lib_env.StaticLibrary('mapnik2', source, LINKFLAGS=linkflags)
+if 'uninstall' in COMMAND_LINE_TARGETS:
+    mapnik = ''
 else:
-    mapnik = lib_env.SharedLibrary('mapnik2', source, LINKFLAGS=linkflags)
-
+    if env['LINKING'] == 'static':
+        mapnik = lib_env.StaticLibrary('mapnik2', source, LINKFLAGS=linkflags)
+    else:
+        mapnik = lib_env.SharedLibrary('mapnik2', source, LINKFLAGS=linkflags)
+    
 # cache library values for other builds to use
 env['LIBMAPNIK_LIBS'] = copy(lib_env['LIBS'])
 env['LIBMAPNIK_CXXFLAGS'] = libmapnik_cxxflags
@@ -348,20 +350,24 @@ else:
 includes = glob.glob('../include/mapnik/*.hpp')
 svg_includes = glob.glob('../include/mapnik/svg/*.hpp')
 wkt_includes = glob.glob('../include/mapnik/wkt/*.hpp')
+json_includes = glob.glob('../include/mapnik/json/*.hpp')
 grid_includes = glob.glob('../include/mapnik/grid/*.hpp')
 
 inc_target = os.path.normpath(env['INSTALL_PREFIX']+'/include/mapnik')
 svg_inc_target = os.path.normpath(env['INSTALL_PREFIX']+'/include/mapnik/svg')
 wkt_inc_target = os.path.normpath(env['INSTALL_PREFIX']+'/include/mapnik/wkt')
+json_inc_target = os.path.normpath(env['INSTALL_PREFIX']+'/include/mapnik/json')
 grid_inc_target = os.path.normpath(env['INSTALL_PREFIX']+'/include/mapnik/grid')
 
 if 'uninstall' not in COMMAND_LINE_TARGETS:
     env.Alias(target='install', source=env.Install(inc_target, includes))
     env.Alias(target='install', source=env.Install(svg_inc_target, svg_includes))
     env.Alias(target='install', source=env.Install(wkt_inc_target, wkt_includes))
+    env.Alias(target='install', source=env.Install(json_inc_target, json_includes))
     env.Alias(target='install', source=env.Install(grid_inc_target, grid_includes))
 
 env['create_uninstall_target'](env, inc_target)
 env['create_uninstall_target'](env, svg_inc_target)
 env['create_uninstall_target'](env, wkt_inc_target)
+env['create_uninstall_target'](env, json_inc_target)
 env['create_uninstall_target'](env, grid_inc_target)
