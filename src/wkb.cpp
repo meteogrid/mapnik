@@ -387,7 +387,7 @@ private:
         CoordinateArray ar(num_points);
         read_coords(ar);
         line->set_capacity(num_points);
-        line->move_to(ar[0].x, ar[0].y);
+        line->move_to(ar[0].x, ar[0].y,num_points);
         for (int i = 1; i < num_points; ++i)
         {
             line->line_to(ar[i].x, ar[i].y);
@@ -418,7 +418,7 @@ private:
             CoordinateArray ar(num_points); 
             read_coords(ar);
             line->set_capacity(capacity);
-            line->move_to(ar[0].x, ar[0].y);
+            line->move_to(ar[0].x, ar[0].y, capacity);
             for (int j = 1; j < num_points; ++j)
             { 
                 line->line_to(ar[j].x, ar[j].y);
@@ -434,7 +434,7 @@ private:
         CoordinateArray ar(num_points);
         read_coords_xyz(ar);
         line->set_capacity(num_points);
-        line->move_to(ar[0].x, ar[0].y);
+        line->move_to(ar[0].x, ar[0].y, num_points);
         for (int i = 1; i < num_points; ++i)
         {
             line->line_to(ar[i].x, ar[i].y);
@@ -465,7 +465,7 @@ private:
             CoordinateArray ar(num_points);
             read_coords_xyz(ar);
             line->set_capacity(capacity);
-            line->move_to(ar[0].x, ar[0].y);
+            line->move_to(ar[0].x, ar[0].y, capacity);
             for (int j = 1; j < num_points; ++j)
             {
                 line->line_to(ar[j].x, ar[j].y);
@@ -487,7 +487,7 @@ private:
             CoordinateArray ar(num_points);
             read_coords(ar);
             poly->set_capacity(capacity);
-            poly->move_to(ar[0].x, ar[0].y);
+            poly->move_to(ar[0].x, ar[0].y, capacity);
             for (int j = 1; j < num_points; ++j)
             {
                 poly->line_to(ar[j].x, ar[j].y);
@@ -522,7 +522,7 @@ private:
                 CoordinateArray ar(num_points);
                 read_coords(ar);
                 poly->set_capacity(capacity);
-                poly->move_to(ar[0].x, ar[0].y);
+                poly->move_to(ar[0].x, ar[0].y, capacity);
                 for (int j = 1; j < num_points; ++j)
                 {
                     poly->line_to(ar[j].x, ar[j].y);
@@ -545,7 +545,7 @@ private:
             CoordinateArray ar(num_points);
             read_coords_xyz(ar);
             poly->set_capacity(capacity);
-            poly->move_to(ar[0].x, ar[0].y);
+            poly->move_to(ar[0].x, ar[0].y, capacity);
             for (int j = 1; j < num_points; ++j)
             {
                 poly->line_to(ar[j].x, ar[j].y);
@@ -580,7 +580,7 @@ private:
                 CoordinateArray ar(num_points);
                 read_coords_xyz(ar);
                 poly->set_capacity(capacity);
-                poly->move_to(ar[0].x, ar[0].y);
+                poly->move_to(ar[0].x, ar[0].y, capacity);
                 for (int j = 1; j < num_points; ++j)
                 {
                     poly->line_to(ar[j].x, ar[j].y);

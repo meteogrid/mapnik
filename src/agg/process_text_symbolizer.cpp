@@ -133,26 +133,56 @@ void agg_renderer<T>::process(text_symbolizer const& sym,
                     double label_x=0.0;
                     double label_y=0.0;
                     double z=0.0;
-                    if (sym.get_label_placement() == POINT_PLACEMENT)
-                        geom->label_position(&label_x, &label_y);
-                    else
-                        geom->label_interior_position(&label_x, &label_y);
-                    prj_trans.backward(label_x,label_y, z);
-                    t_.forward(&label_x,&label_y);
-
-                    double angle = 0.0;
-                    expression_ptr angle_expr = sym.get_orientation();
-                    if (angle_expr)
+                    unsigned parts = geom->num_parts();
+                    if (parts > 1)
                     {
-                        // apply rotation
-                        value_type result = boost::apply_visitor(evaluate<Feature,value_type>(feature),*angle_expr);
-                        angle = result.to_double();
+                        for (int j = 0; j < parts; j++)
+                        {
+                            if (sym.get_label_placement() == POINT_PLACEMENT)
+                                geom->label_position(&label_x, &label_y,j);
+                            else
+                                geom->label_interior_position(&label_x, &label_y);
+                            prj_trans.backward(label_x,label_y, z);
+                            t_.forward(&label_x,&label_y);
+        
+                            double angle = 0.0;
+                            expression_ptr angle_expr = sym.get_orientation();
+                            if (angle_expr)
+                            {
+                                // apply rotation
+                                value_type result = boost::apply_visitor(evaluate<Feature,value_type>(feature),*angle_expr);
+                                angle = result.to_double();
+                            }
+        
+                            finder.find_point_placement(text_placement, placement_options, label_x,label_y,
+                                                        angle, sym.get_line_spacing(),
+                                                        sym.get_character_spacing());
+                            finder.update_detector(text_placement);
+                        }
                     }
-
-                    finder.find_point_placement(text_placement, placement_options, label_x,label_y,
-                                                angle, sym.get_line_spacing(),
-                                                sym.get_character_spacing());
-                    finder.update_detector(text_placement);
+                    else
+                    {
+                        if (sym.get_label_placement() == POINT_PLACEMENT)
+                            geom->label_position(&label_x, &label_y);
+                        else
+                            geom->label_interior_position(&label_x, &label_y);
+                        prj_trans.backward(label_x,label_y, z);
+                        t_.forward(&label_x,&label_y);
+    
+                        double angle = 0.0;
+                        expression_ptr angle_expr = sym.get_orientation();
+                        if (angle_expr)
+                        {
+                            // apply rotation
+                            value_type result = boost::apply_visitor(evaluate<Feature,value_type>(feature),*angle_expr);
+                            angle = result.to_double();
+                        }
+    
+                        finder.find_point_placement(text_placement, placement_options, label_x,label_y,
+                                                    angle, sym.get_line_spacing(),
+                                                    sym.get_character_spacing());
+                        finder.update_detector(text_placement);
+                    }
                 }
                 else if ( geom->num_points() > 1 && sym.get_label_placement() == LINE_PLACEMENT)
                 {

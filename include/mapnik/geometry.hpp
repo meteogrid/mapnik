@@ -51,11 +51,12 @@ class geometry
 public:
     typedef T vertex_type;
     typedef typename vertex_type::type value_type;
-    typedef Container<vertex_type> container_type;   
+    typedef Container<vertex_type> container_type;
 private:
     container_type cont_;
     eGeomType type_;
     mutable unsigned itr_;
+    mutable std::vector<unsigned> parts_;
 public:
     
     geometry(eGeomType type)
@@ -70,6 +71,7 @@ public:
         
     box2d<double> envelope() const
     {
+        // TODO - cache this
         box2d<double> result;
         double x(0);
         double y(0);
@@ -215,6 +217,64 @@ public:
         *y=y0;            
     }
 
+
+    void label_position(double *x, double *y, unsigned part) const
+    {
+        if (type_ == LineString || type_ == MultiLineString)
+        {
+            middle_point(x,y);
+            return;
+        }
+        
+        unsigned size = parts_[part];
+        if (size < 3) 
+        {
+            cont_.get_vertex(size,x,y);
+            return;
+        }
+           
+        double ai;
+        double atmp = 0;
+        double xtmp = 0;
+        double ytmp = 0;
+        double x0 =0;
+        double y0 =0;
+        double x1 =0;
+        double y1 =0;
+        double ox =0;
+        double oy =0;
+           
+        unsigned i;
+        
+        unsigned start = 0;
+        if (part > 0)
+            start = parts_[part-1]+1;
+        // Use first point as origin to improve numerical accuracy
+        cont_.get_vertex(start,&ox,&oy);
+
+        for (i = start; i <= size; i++)
+        {
+            cont_.get_vertex(i,&x0,&y0);
+            cont_.get_vertex(i+1,&x1,&y1);
+               
+            x0 -= ox; y0 -= oy;
+            x1 -= ox; y1 -= oy;
+
+            ai = x0 * y1 - x1 * y0;
+            atmp += ai;
+            xtmp += (x1 + x0) * ai;
+            ytmp += (y1 + y0) * ai;
+        }    
+        if (atmp != 0)
+        {
+            *x = (xtmp/(3*atmp)) + ox;
+            *y = (ytmp/(3*atmp)) + oy;
+            return;
+        }
+        *x=x0;
+        *y=y0;            
+    }
+
     /* center of bounding box centroid */
     void label_position2(double *x, double *y) const
     {
@@ -322,10 +382,26 @@ public:
     {
         push_vertex(x,y,SEG_MOVETO);
     }
+
+    void move_to(value_type x,value_type y, unsigned capacity)
+    {
+        push_vertex(x,y,SEG_MOVETO);
+        parts_.push_back(capacity);
+    }
     
     unsigned num_points() const
     {
         return cont_.size();
+    }
+
+    unsigned num_parts() const
+    {
+        return parts_.size();
+    }
+
+    std::vector<unsigned> const& parts() const
+    {
+        return parts_;
     }
          
     unsigned vertex(double* x, double* y) const
@@ -377,7 +453,7 @@ public:
             return inside;
         }
         return false;
-    } 
+    }
          
     void set_capacity(size_t size) 
     {

@@ -183,40 +183,84 @@ void agg_renderer<T>::process(markers_symbolizer const& sym,
         for (unsigned i=0; i<feature.num_geometries(); ++i)
         {
             geometry_type const& geom = feature.get_geometry(i);
-            //if (geom.num_points() <= 1) continue;
-            if (placement_method == MARKER_POINT_PLACEMENT || geom.num_points() <= 1)
-            {
-                geom.label_position(&x,&y);
-                prj_trans.backward(x,y,z);
-                t_.forward(&x,&y);
-                int px = int(floor(x - 0.5 * dx));
-                int py = int(floor(y - 0.5 * dy));
-                box2d<double> label_ext (px, py, px + dx +1, py + dy +1);
 
-                if (sym.get_allow_overlap() ||
-                    detector_->has_placement(label_ext))
+            if (placement_method == MARKER_POINT_PLACEMENT
+                || geom.type() == mapnik::Point
+                || geom.type() == mapnik::MultiPoint)
+            {
+                unsigned parts = geom.num_parts();
+                if (parts > 1)
                 {
-                    agg::ellipse c(x, y, w, h);
-                    marker.concat_path(c);
-                    ras_ptr->add_path(marker);
-                    ren.color(agg::rgba8(r, g, b, int(a*sym.get_opacity())));
-                    // TODO - fill with packed scanlines? agg::scanline_p8
-                    // and agg::renderer_outline_aa
-                    agg::render_scanlines(*ras_ptr, sl, ren);
-                    
-                    // outline
-                    if (strk_width)
+                    for (int j = 0; j < parts; j++)
                     {
-                        ras_ptr->reset();
-                        agg::conv_stroke<agg::path_storage>  outline(marker);
-                        outline.generator().width(strk_width * scale_factor_);
-                        ras_ptr->add_path(outline);
-    
-                        ren.color(agg::rgba8(s_r, s_g, s_b, int(s_a*stroke_.get_opacity())));
-                        agg::render_scanlines(*ras_ptr, sl_line, ren);
+                        geom.label_position(&x,&y,j);
+                        prj_trans.backward(x,y,z);
+                        t_.forward(&x,&y);
+                        int px = int(floor(x - 0.5 * dx));
+                        int py = int(floor(y - 0.5 * dy));
+                        box2d<double> label_ext (px, py, px + dx +1, py + dy +1);
+        
+                        if (sym.get_allow_overlap() ||
+                            detector_->has_placement(label_ext))
+                        {
+                            agg::ellipse c(x, y, w, h);
+                            marker.concat_path(c);
+                            ras_ptr->add_path(marker);
+                            ren.color(agg::rgba8(r, g, b, int(a*sym.get_opacity())));
+                            // TODO - fill with packed scanlines? agg::scanline_p8
+                            // and agg::renderer_outline_aa
+                            agg::render_scanlines(*ras_ptr, sl, ren);
+                            
+                            // outline
+                            if (strk_width)
+                            {
+                                ras_ptr->reset();
+                                agg::conv_stroke<agg::path_storage>  outline(marker);
+                                outline.generator().width(strk_width * scale_factor_);
+                                ras_ptr->add_path(outline);
+            
+                                ren.color(agg::rgba8(s_r, s_g, s_b, int(s_a*stroke_.get_opacity())));
+                                agg::render_scanlines(*ras_ptr, sl_line, ren);
+                            }
+                            detector_->insert(label_ext);
+                            if (writer.first) writer.first->add_box(label_ext, feature, t_, writer.second);
+                        }
                     }
-                    detector_->insert(label_ext);
-                    if (writer.first) writer.first->add_box(label_ext, feature, t_, writer.second);
+                }
+                else
+                {
+                    geom.label_position(&x,&y);
+                    prj_trans.backward(x,y,z);
+                    t_.forward(&x,&y);
+                    int px = int(floor(x - 0.5 * dx));
+                    int py = int(floor(y - 0.5 * dy));
+                    box2d<double> label_ext (px, py, px + dx +1, py + dy +1);
+    
+                    if (sym.get_allow_overlap() ||
+                        detector_->has_placement(label_ext))
+                    {
+                        agg::ellipse c(x, y, w, h);
+                        marker.concat_path(c);
+                        ras_ptr->add_path(marker);
+                        ren.color(agg::rgba8(r, g, b, int(a*sym.get_opacity())));
+                        // TODO - fill with packed scanlines? agg::scanline_p8
+                        // and agg::renderer_outline_aa
+                        agg::render_scanlines(*ras_ptr, sl, ren);
+                        
+                        // outline
+                        if (strk_width)
+                        {
+                            ras_ptr->reset();
+                            agg::conv_stroke<agg::path_storage>  outline(marker);
+                            outline.generator().width(strk_width * scale_factor_);
+                            ras_ptr->add_path(outline);
+        
+                            ren.color(agg::rgba8(s_r, s_g, s_b, int(s_a*stroke_.get_opacity())));
+                            agg::render_scanlines(*ras_ptr, sl_line, ren);
+                        }
+                        detector_->insert(label_ext);
+                        if (writer.first) writer.first->add_box(label_ext, feature, t_, writer.second);
+                    }
                 }
             }
             else
