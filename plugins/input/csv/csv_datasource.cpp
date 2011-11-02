@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 using mapnik::datasource;
 using mapnik::parameters;
 using namespace boost::spirit;
@@ -191,17 +190,39 @@ void csv_datasource::parse_csv(T& stream,
     {
         // default to ','
         sep = ",";
+        int num_commas = std::count(csv_line.begin(), csv_line.end(), ',');
         // detect tabs
         int num_tabs = std::count(csv_line.begin(), csv_line.end(), '\t');
         if (num_tabs > 0)
         {
-            int num_commas = std::count(csv_line.begin(), csv_line.end(), ',');
             if (num_tabs > num_commas)
             {
                 sep = "\t";
 #ifdef MAPNIK_DEBUG
                 std::clog << "CSV Plugin: auto detected tab separator\n";
 #endif
+            }
+        }
+        else // pipes
+        {
+            int num_pipes = std::count(csv_line.begin(), csv_line.end(), '|');
+            if (num_pipes > num_commas)
+            {
+                sep = "|";
+#ifdef MAPNIK_DEBUG
+                std::clog << "CSV Plugin: auto detected '|' separator\n";
+#endif
+            }
+            else // semicolons
+            {
+                int num_semicolons = std::count(csv_line.begin(), csv_line.end(), ';');
+                if (num_semicolons > num_commas)
+                {
+                    sep = ";";
+    #ifdef MAPNIK_DEBUG
+                    std::clog << "CSV Plugin: auto detected ';' separator\n";
+    #endif
+                }
             }
         }
     }
@@ -586,7 +607,9 @@ void csv_datasource::parse_csv(T& stream,
                 {
                     boost::put(*feature,fld_name,mapnik::value_null());
                     if (feature_count == 1)
+                    {
                         desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::String));
+                    }
                 }
                 // only true strings are this long
                 else if (value_length > 20)
@@ -594,7 +617,9 @@ void csv_datasource::parse_csv(T& stream,
                     UnicodeString ustr = tr.transcode(value.c_str());
                     boost::put(*feature,fld_name,ustr);
                     if (feature_count == 1)
+                    {
                         desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::String));
+                    }
                 
                 }
                 else if ((value[0] >= '0' && value[0] <= '9') || value[0] == '-')
@@ -609,14 +634,18 @@ void csv_datasource::parse_csv(T& stream,
                         {
                             boost::put(*feature,fld_name,float_val);
                             if (feature_count == 1)
+                            {
                                 desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::Double));
+                            }
                         }
                         else
                         {
                             int val = static_cast<int>(float_val);
                             boost::put(*feature,fld_name,val);
                             if (feature_count == 1)
+                            {
                                 desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::Integer));
+                            }
                         }
                     }
                     else
@@ -625,7 +654,9 @@ void csv_datasource::parse_csv(T& stream,
                         UnicodeString ustr = tr.transcode(value.c_str());
                         boost::put(*feature,fld_name,ustr);
                         if (feature_count == 1)
+                        {
                             desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::String));
+                        }
                     }
                 }
                 else
@@ -635,13 +666,17 @@ void csv_datasource::parse_csv(T& stream,
                     {
                         boost::put(*feature,fld_name,true);
                         if (feature_count == 1)
+                        {
                             desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::Boolean));
+                        }
                     }
                     else if(value_lower == "false")
                     {
                         boost::put(*feature,fld_name,false);
                         if (feature_count == 1)
+                        {
                             desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::Boolean));
+                        }
                     }
                     else
                     {
@@ -649,7 +684,9 @@ void csv_datasource::parse_csv(T& stream,
                         UnicodeString ustr = tr.transcode(value.c_str());
                         boost::put(*feature,fld_name,ustr);
                         if (feature_count == 1)
+                        {
                             desc_.add_descriptor(mapnik::attribute_descriptor(fld_name,mapnik::String));
+                        }
                     }
                 }
             }
