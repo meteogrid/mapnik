@@ -1216,6 +1216,9 @@ if not preconfigured:
     # https://github.com/mapnik/mapnik/issues/913
     if conf.parse_config('XML2_CONFIG',checks='--cflags'):
         env['HAS_LIBXML2'] = True
+        xml2_env = env.Clone()
+        xml2_env.ParseConfig('%s --libs' % env['XML2_CONFIG'])
+        env.AppendUnique(LIBPATH = xml2_env['LIBPATH'])
     else:
         env['MISSING_DEPS'].append('libxml2')
 
